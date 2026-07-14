@@ -1,0 +1,28 @@
+# Datos — nunca subir a GitHub
+data/raw/
+data/processed/
+data/models/
+
+# Figuras generadas
+figures/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Entornos
+.env
+*.env
+.venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
