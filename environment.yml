@@ -1,0 +1,25 @@
+name: lur1
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - gdal
+  - rasterio
+  - geopandas
+  - xarray
+  - pyproj
+  - shapely
+  - fiona
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - folium
+  - joblib
+  - pyyaml
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+    - cdsetool          # cliente CDSE para descarga Sentinel-2 (reemplaza sentinelsat)

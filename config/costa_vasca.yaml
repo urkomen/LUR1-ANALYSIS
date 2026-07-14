@@ -1,0 +1,23 @@
+location:
+  name: "Costa vasca — Zarautz a Donostia"
+  bbox: [-2.20, 43.25, -1.90, 43.40]   # [lon_min, lat_min, lon_max, lat_max]
+
+dates:
+  start: "2024-01-01"
+  end:   "2024-12-31"
+
+satellite:
+  sensor:        "Sentinel-2"
+  product_level: "L2A"
+  max_cloud_pct: 20
+
+indices: ["NDVI", "NDWI", "MNDWI"]
+
+classifier:
+  classes: ["agua", "vegetacion", "urbano", "litoral"]
+  model:   "random_forest"
+
+anomaly_detector:
+  method:          "statistical"
+  window_days:     30
+  threshold_sigma: 2.0

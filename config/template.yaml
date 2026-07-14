@@ -1,0 +1,23 @@
+location:
+  name: ""          # Nombre descriptivo de la zona de estudio
+  bbox: []          # [lon_min, lat_min, lon_max, lat_max] en WGS84
+
+dates:
+  start: ""         # Fecha inicio en formato YYYY-MM-DD
+  end:   ""         # Fecha fin en formato YYYY-MM-DD
+
+satellite:
+  sensor:        "Sentinel-2"   # No cambiar en v1
+  product_level: "L2A"          # L2A = ya corregido atmosféricamente por ESA
+  max_cloud_pct: 20             # Descartar escenas con más del X% de nubes
+
+indices: ["NDVI", "NDWI", "MNDWI"]   # Índices a calcular
+
+classifier:
+  classes: []       # Lista de clases de cobertura terrestre a clasificar
+  model: "random_forest"   # "cnn" disponible en v2
+
+anomaly_detector:
+  method:          "statistical"   # "isolation_forest" disponible en v2
+  window_days:     30              # Ventana temporal para calcular estadísticos
+  threshold_sigma: 2.0             # Umbral en sigmas para marcar anomalía
