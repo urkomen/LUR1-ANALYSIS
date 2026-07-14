@@ -10,6 +10,7 @@ satellite:
   sensor:        "Sentinel-2"
   product_level: "L2A"
   max_cloud_pct: 20
+  tile:          "T30TWN"    # tile Sentinel-2 que cubre Zarautz-Donostia
 
 indices: ["NDVI", "NDWI", "MNDWI"]
 

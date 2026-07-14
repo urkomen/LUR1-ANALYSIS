@@ -1,5 +1,10 @@
 import argparse
+import sys
+from pathlib import Path
 import yaml
+
+sys.path.insert(0, str(Path(__file__).parent))
+from downloader import download as _download
 
 
 class Pipeline:
@@ -9,7 +14,7 @@ class Pipeline:
         print(f"Pipeline inicializado: {self.config['location']['name']}")
 
     def download(self):
-        print("[download] pendiente de implementar")
+        _download(self.config)
 
     def preprocess(self):
         print("[preprocess] pendiente de implementar")

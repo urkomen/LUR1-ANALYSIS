@@ -89,31 +89,31 @@ primeros datos descargados y explorados visualmente.
 
 ### 1.1 Entorno reproducible
 
-- [x] Crear entorno conda con dependencias geoespaciales (`rasterio`, `GDAL`, `geopandas`, `xarray`, `sentinelsat`, `scikit-learn`, `matplotlib`, `folium`)
-- [x] Verificar que `import rasterio` y `import geopandas` funcionan sin errores
-- [x] Generar `environment.yml` con `conda env export`
-- [x] Añadir `.gitignore` con exclusiones estándar de Python + `/data/`
+- [X] Crear entorno conda con dependencias geoespaciales (`rasterio`, `GDAL`, `geopandas`, `xarray`, `sentinelsat`, `scikit-learn`, `matplotlib`, `folium`)
+- [X] Verificar que `import rasterio` y `import geopandas` funcionan sin errores
+- [X] Generar `environment.yml` con `conda env export`
+- [X] Añadir `.gitignore` con exclusiones estándar de Python + `/data/`
 
 > **Nota:** Resolver GDAL/rasterio el primer día. Si hay conflictos de dependencias,
 > usar `conda-forge` como canal prioritario. No avanzar hasta que el entorno esté limpio.
 
 ### 1.2 Estructura del repositorio y clase Pipeline
 
-- [ ] Inicializar repositorio Git y hacer primer commit con la estructura de carpetas
-- [x] Crear `config/costa_vasca.yaml` con los campos definidos en la arquitectura
-- [x] Crear `config/template.yaml` vacío con comentarios explicativos para cada campo
-- [x] Crear `src/pipeline.py` con la clase `Pipeline` como stub: `__init__(config_path)`, métodos vacíos `download()`, `preprocess()`, `classify()`, `detect_anomalies()`, `run_full()`
-- [x] Crear `Makefile` con regla `run: python src/pipeline.py --config $(CONFIG)`
-- [x] Verificar que `make run CONFIG=config/costa_vasca.yaml` ejecuta sin errores (aunque no haga nada todavía)
+- [X] Inicializar repositorio Git y hacer primer commit con la estructura de carpetas
+- [X] Crear `config/costa_vasca.yaml` con los campos definidos en la arquitectura
+- [X] Crear `config/template.yaml` vacío con comentarios explicativos para cada campo
+- [X] Crear `src/pipeline.py` con la clase `Pipeline` como stub: `__init__(config_path)`, métodos vacíos `download()`, `preprocess()`, `classify()`, `detect_anomalies()`, `run_full()`
+- [X] Crear `Makefile` con regla `run: python src/pipeline.py --config $(CONFIG)`
+- [X] Verificar que `make run CONFIG=config/costa_vasca.yaml` ejecuta sin errores (aunque no haga nada todavía)
 
 ### 1.3 Descarga de datos Sentinel-2
 
-- [ ] Crear cuenta en Copernicus Open Hub (scihub.copernicus.eu) si no existe
-- [ ] Implementar `downloader.py`: función `download(config)` que usa `sentinelsat` para buscar y descargar escenas L2A dentro del bbox y rango de fechas del config
-- [ ] Filtrar por `max_cloud_pct` del config
-- [ ] Descargar 2-3 escenas de la costa vasca (Zarautz–Donostia) con cobertura nubosa < 20%
-- [ ] Guardar en `/data/raw/` con estructura `YYYYMMDD_T30TWN/`
-- [ ] Conectar `downloader.py` a `Pipeline.download()`
+- [x] Crear cuenta en Copernicus Open Hub (scihub.copernicus.eu) si no existe
+- [x] Implementar `downloader.py`: función `download(config)` que usa la API OData de CDSE para buscar y descargar escenas L2A dentro del bbox y rango de fechas del config
+- [x] Filtrar por `max_cloud_pct` del config
+- [x] Descargar 2-3 escenas de la costa vasca (Zarautz–Donostia) con cobertura nubosa < 20%
+- [x] Guardar en `/data/raw/`
+- [x] Conectar `downloader.py` a `Pipeline.download()`
 
 > **Truco:** Usar producto L2A directamente (ya corregido atmosféricamente por ESA).
 > Evita tener que correr Sen2Cor localmente, que tarda 30-60 min por escena.
@@ -367,6 +367,7 @@ Objetivo: README que cuenta la historia completa. Notebook demo ejecutable en
 | Spatial      | Mapa de distribución espacial de anomalías por zona                 |
 | Datos        | Tercera ubicación fuera del País Vasco                              |
 | CLI          | `argparse` para ejecutar desde terminal sin tocar Python            |
+| Descarga     | Modo interactivo: mostrar escenas disponibles y elegir cuáles descargar |
 
 > **Nota de diseño:** El `config.yaml` ya tiene los campos `method: "isolation_forest"`
 > y `model: "cnn"` aunque no estén implementados en v1. Cuando llegue el momento,
