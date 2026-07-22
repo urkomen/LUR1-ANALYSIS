@@ -6,6 +6,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 from downloader import download as _download
 from preprocessor import preprocess as _preprocess
+from indices import calculate_indices
 
 
 class Pipeline:
@@ -28,6 +29,11 @@ class Pipeline:
         for scene_dir in scene_dirs:
             print(f'Preprocesando: {scene_dir.name}')
             result = _preprocess(scene_dir, self.config)
+            print('Calculando índices espectrales...')
+            result['indices'] = calculate_indices(
+                result['bands'],
+                self.config.get('indices', ['NDVI', 'NDWI', 'MNDWI'])
+            )
             self.processed.append(result)
         print(f'Preprocesado completado: {len(self.processed)} escena(s)')
 

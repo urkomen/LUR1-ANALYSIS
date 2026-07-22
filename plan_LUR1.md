@@ -155,14 +155,14 @@ de calidad para el README.
 
 ### 2.2 Módulo de índices espectrales
 
-- [ ] Crear `src/indices.py`
-- [ ] Implementar `ndvi(nir, red)` — Normalized Difference Vegetation Index: `(NIR - Red) / (NIR + Red)`
-- [ ] Implementar `ndwi(green, nir)` — Normalized Difference Water Index: `(Green - NIR) / (Green + NIR)`
-- [ ] Implementar `mndwi(green, swir)` — Modified NDWI para agua superficial: `(Green - SWIR) / (Green + SWIR)`
-- [ ] Cada función tiene docstring con: fórmula, bandas Sentinel-2 usadas (B0X), rango de valores, interpretación física
-- [ ] Implementar `calculate_indices(scene, index_list)` que lee la lista de índices del config y llama a las funciones correspondientes
+- [x] Crear `src/indices.py`
+- [x] Implementar `ndvi(nir, red)` — Normalized Difference Vegetation Index: `(NIR - Red) / (NIR + Red)`
+- [x] Implementar `ndwi(green, nir)` — Normalized Difference Water Index: `(Green - NIR) / (Green + NIR)`
+- [x] Implementar `mndwi(green, swir)` — Modified NDWI para agua superficial: `(Green - SWIR) / (Green + SWIR)`
+- [x] Cada función tiene docstring con: fórmula, bandas Sentinel-2 usadas (B0X), rango de valores, interpretación física
+- [x] Implementar `calculate_indices(scene, index_list)` que lee la lista de índices del config y llama a las funciones correspondientes
 - [ ] Escribir tests unitarios en `tests/test_indices.py` con arrays sintéticos (input conocido → output verificable)
-- [ ] Conectar `indices.py` a `Pipeline.preprocess()`
+- [x] Conectar `indices.py` a `Pipeline.preprocess()`
 
 > **Analogía astrofísica para el README:** La corrección atmosférica (L1C → L2A)
 > es equivalente a la corrección telúrica en espectroscopía astronómica: eliminar

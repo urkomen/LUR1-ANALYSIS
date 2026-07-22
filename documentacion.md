@@ -133,4 +133,64 @@ Las imágenes muestran reflectancia — cuánta luz de cada longitud de onda reb
 
 ---
 
-*Documento actualizado a: Fase 1 completada*
+## Fase 2 — Preprocesado e índices espectrales
+
+### 2.1 Máscara de nubes y recorte al área de interés
+
+**Qué hicimos:** Implementamos `preprocessor.py` con dos operaciones: enmascarar píxeles nubosos usando la capa SCL y recortar las bandas al bounding box de la Costa Vasca.
+
+**Por qué la máscara de nubes es imprescindible:** Las nubes son el principal problema operativo en teledetección óptica. Un píxel cubierto por nube no mide la superficie — mide la nube. Si lo incluimos en el análisis, contamina el clasificador y falsea los índices. La SCL (Scene Classification Layer) que incluye Sentinel-2 L2A nos da una clasificación por píxel ya hecha por ESA: vegetación, agua, suelo, nube media, nube alta, cirro, sombra de nube. Nosotros marcamos como inválidos los píxeles de las clases 0 (sin datos), 1 (saturado), 3 (sombra), 8 (nube media), 9 (nube alta) y 10 (cirrus).
+
+**Por qué recortamos al bbox:** Las escenas Sentinel-2 son tiles de 100×100 km — demasiado grandes para procesar en tiempo razonable y con mucha información irrelevante fuera del área de interés. Recortamos a `[-2.20, 43.25, -1.90, 43.40]` (aproximadamente Zarautz-Donostia más margen de costa). El resultado es un recorte de 2414×1112 píxeles a 10 m/px → ~24×11 km.
+
+**Detalle técnico — resampling B11 de 20 m a 10 m:** La banda B11 (SWIR, necesaria para MNDWI) está a 20 m de resolución. Para operar con ella junto a las bandas de 10 m, aplicamos un upsampling por repetición de vecino más próximo (nearest neighbor): cada píxel de 20 m se convierte en un bloque 2×2 de píxeles idénticos a 10 m. Elegimos nearest neighbor porque preserva los valores originales sin interpolar — importante para mantener los valores físicos de reflectancia sin artefactos.
+
+**Detalle técnico — sincronización de tamaños:** La SCL está a 20 m y las bandas a 10 m. Al hacer upscaling de la máscara (×2 en cada dimensión) pueden aparecer diferencias de ±1 píxel en los bordes por cómo rasterio hace el recorte. Usamos `min(h_banda, h_máscara)` y `min(w_banda, w_máscara)` para alinearlos antes de aplicar la máscara, sin pérdida de información.
+
+**Resultado:** Las tres escenas quedan preprocesadas con sus píxeles nubosos a NaN. La cobertura nubosa en el bbox fue baja en las tres escenas de diciembre 2024, dentro del umbral del 20% configurado.
+
+---
+
+### 2.2 Índices espectrales
+
+**Qué hicimos:** Implementamos `src/indices.py` con tres índices: NDVI, NDWI y MNDWI. Los conectamos al pipeline para que se calculen automáticamente tras el preprocesado.
+
+**Por qué calculamos índices y no usamos las bandas directamente:** Las bandas individuales miden reflectancia absoluta, que varía según condiciones de iluminación, ángulo solar y geometría de adquisición. Los índices normalizados dividen la diferencia entre dos bandas por su suma, lo que los hace adimensionales y comparables entre fechas y sensores. Es la misma idea que un cociente de colores en espectroscopía — la calibración relativa.
+
+**Los tres índices que calculamos:**
+
+| Índice | Fórmula | Bandas S-2 | Qué detecta |
+|---|---|---|---|
+| NDVI | (B08 − B04) / (B08 + B04) | NIR, Red | Vegetación. Rango −1 a 1. Vegetación sana > 0.3, suelo ≈ 0, agua < 0 |
+| NDWI | (B03 − B08) / (B03 + B08) | Green, NIR | Agua superficial general. Agua > 0, tierra < 0 |
+| MNDWI | (B03 − B11) / (B03 + B11) | Green, SWIR | Agua superficial en zonas costeras y urbanas. Más preciso que NDWI donde hay mezcla agua-suelo |
+
+**Por qué MNDWI además de NDWI:** En la costa el NDWI puede confundir zonas húmedas, marismas y urbano con agua. El SWIR (B11) absorbe más fuertemente el agua líquida y reduce esta confusión. La Costa Vasca tiene playas, marismas (Txingudi) y zonas portuarias — exactamente el tipo de paisaje donde MNDWI supera a NDWI.
+
+**Implementación — manejo de división por cero:** Las sumas de bandas pueden ser 0 en píxeles NaN o donde ambas bandas son 0. Usamos `np.where(denominador != 0, numerador/denominador, np.nan)` para evitar el `RuntimeWarning` de NumPy en divisiones por cero, propagando NaN donde no hay dato válido. El warning residual que vemos en la salida es esperado: NumPy evalúa la expresión completa antes de aplicar el `where`, pero el resultado es correcto.
+
+**Resultados obtenidos en las 3 escenas:**
+- NDVI: rango −1 a 1 — confirma presencia de vegetación densa (montes cercanos) y agua (Cantábrico)
+- NDWI: rango −1 a 1 — el Cantábrico y la bahía de La Concha dominan los valores altos
+- MNDWI: máximo ~0.64–0.77 — físicamente correcto, el agua costera con SWIR raramente supera 0.8
+
+---
+
+### 2.3 Visualización de índices espectrales
+
+**Qué hicimos:** Creamos el notebook `02_indices.ipynb` que carga las escenas procesadas, genera mapas cartográficos de NDVI, NDWI y MNDWI con paletas de color interpretables, una comparación temporal de NDVI entre las tres escenas, e histogramas de distribución de píxeles. Todo se exporta a `figures/`.
+
+**Por qué importa la elección de paleta:** En teledetección, la paleta de color no es estética — es semántica. Una paleta incorrecta puede hacer que zonas de agua parezcan vegetación y viceversa. Definimos:
+- NDVI → `RdYlGn` (divergente): rojo para agua y suelo desnudo, amarillo para valores neutros, verde para vegetación. La divergencia en 0 tiene significado físico directo.
+- NDWI/MNDWI → `RdBu` (divergente): azul para agua (valores positivos), rojo para tierra seca (valores negativos). Intuitivo y accesible para daltónicos en la dirección rojo-azul.
+
+**Visualizaciones exportadas:**
+- `figures/indices_<escena>.png` — panel 3×1 con NDVI, NDWI, MNDWI para cada escena individual
+- `figures/ndvi_comparacion_temporal.png` — las tres escenas en fila con la misma escala de color para comparación directa
+- `figures/histogramas_indices.png` — distribución estadística de cada índice, útil para ver bimodidad agua/vegetación
+
+**Qué nos dice la comparación temporal del NDVI:** Las tres escenas son todas de noviembre-diciembre 2024, periodo de baja actividad fotosintética en la zona templada. El NDVI medio de la vegetación es más bajo que en verano (donde esperaríamos valores > 0.6). Esta variación estacional es precisamente lo que el detector de anomalías de la Fase 4 tendrá que distinguir de anomalías reales.
+
+---
+
+*Documento actualizado a: Fase 2 completada*
