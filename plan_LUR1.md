@@ -120,13 +120,13 @@ primeros datos descargados y explorados visualmente.
 
 ### 1.4 Exploración visual
 
-- [ ] Crear `notebooks/01_exploracion.ipynb`
-- [ ] Visualizar cada banda individualmente con `rasterio` + `matplotlib`
-- [ ] Composición RGB (bandas B04-B03-B02)
-- [ ] Composición falso color NIR (bandas B08-B04-B03)
-- [ ] Histograma de distribución de valores por banda
-- [ ] Scatter plot B08 (NIR) vs B04 (Red) — la base del NDVI
-- [ ] Confirmar que los datos tienen buena calidad visual antes de avanzar
+- [x] Crear `notebooks/01_exploracion.ipynb`
+- [x] Visualizar cada banda individualmente con `rasterio` + `matplotlib`
+- [x] Composición RGB (bandas B04-B03-B02)
+- [x] Composición falso color NIR (bandas B08-B04-B03)
+- [x] Histograma de distribución de valores por banda
+- [x] Scatter plot B08 (NIR) vs B04 (Red) — la base del NDVI
+- [x] Confirmar que los datos tienen buena calidad visual antes de avanzar
 
 **Entregables de F1:**
 

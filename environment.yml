@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.11
   - gdal
+  - libgdal-jp2openjpeg
   - rasterio
   - geopandas
   - xarray
@@ -22,4 +23,4 @@ dependencies:
   - ipykernel
   - pip
   - pip:
-    - cdsetool          # cliente CDSE para descarga Sentinel-2 (reemplaza sentinelsat)
+      - cdsetool
