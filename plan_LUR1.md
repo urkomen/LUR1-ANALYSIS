@@ -147,11 +147,11 @@ de calidad para el README.
 
 ### 2.1 Máscara de nubes y recorte
 
-- [ ] Implementar `preprocessor.py`: función `mask_clouds(scene, max_cloud_pct)` usando la capa SCL (Scene Classification Layer) del L2A para enmascarar nubes, sombras de nubes y agua
-- [ ] Implementar `clip_to_bbox(scene, bbox)` que recorta la escena al bbox del config
-- [ ] Aplicar ambas funciones en secuencia sobre las escenas descargadas
-- [ ] Verificar visualmente que la máscara elimina las nubes sin destruir datos válidos
-- [ ] Conectar `preprocessor.py` a `Pipeline.preprocess()`
+- [x] Implementar `preprocessor.py`: función `mask_clouds(scene, max_cloud_pct)` usando la capa SCL (Scene Classification Layer) del L2A para enmascarar nubes, sombras de nubes y agua
+- [x] Implementar `clip_to_bbox(scene, bbox)` que recorta la escena al bbox del config
+- [x] Aplicar ambas funciones en secuencia sobre las escenas descargadas
+- [x] Verificar visualmente que la máscara elimina las nubes sin destruir datos válidos
+- [x] Conectar `preprocessor.py` a `Pipeline.preprocess()`
 
 ### 2.2 Módulo de índices espectrales
 
