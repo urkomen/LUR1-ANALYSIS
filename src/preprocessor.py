@@ -30,10 +30,10 @@ def _bbox_to_geom(bbox, crs):
 
 
 def mask_clouds(scene_dir, bbox, max_cloud_pct=20):
-    """
+    '''
     Lee la SCL, recorta al bbox y devuelve máscara booleana válida a 10m.
     True = píxel válido, False = nube/sombra/sin datos.
-    """
+    '''
     r10m, r20m = _find_img_dirs(scene_dir)
     scl_file = next(r20m.glob('*_SCL_20m.jp2'))
 
@@ -54,23 +54,22 @@ def mask_clouds(scene_dir, bbox, max_cloud_pct=20):
 
 
 def clip_to_bbox(band_file, geom):
-    """Lee un archivo de banda y lo recorta a la geometría dada."""
+    '''Lee un archivo de banda y lo recorta a la geometría dada.'''
     with rasterio.open(band_file) as src:
         data, transform = rio_mask(src, geom, crop=True)
         return data[0].astype(np.float32), transform, src.crs
 
 
 def preprocess(scene_dir, config):
-    """
+    '''
     Aplica máscara de nubes y recorte al bbox sobre todas las bandas.
     Devuelve dict con arrays por banda (NaN donde hay nube) y metadatos.
-    """
+    '''
     bbox = config['location']['bbox']
     max_cloud = config['satellite']['max_cloud_pct']
 
     r10m, r20m = _find_img_dirs(scene_dir)
 
-    # Geometría en CRS de la escena (calculada desde el primer archivo 10m)
     ref_file = next(r10m.glob('*_B02_10m.jp2'))
     with rasterio.open(ref_file) as src:
         crs = src.crs
@@ -87,7 +86,6 @@ def preprocess(scene_dir, config):
         f = next(r10m.glob(f'*_{band_name}_10m.jp2'))
         data, transform, _ = clip_to_bbox(f, geom)
 
-        # Ajustar tamaño si hay diferencia de un píxel por redondeo
         h = min(data.shape[0], valid_10m.shape[0])
         w = min(data.shape[1], valid_10m.shape[1])
         data = data[:h, :w]
@@ -96,7 +94,7 @@ def preprocess(scene_dir, config):
         data[~mask] = np.nan
         bands[band_name] = data
 
-    # Banda SWIR (B11 a 20m) — necesaria para MNDWI, resampled a 10m
+    # B11 (SWIR a 20m) — necesaria para MNDWI, resampled a 10m
     b11_file = next(r20m.glob('*_B11_20m.jp2'))
     b11_20m, _, _ = clip_to_bbox(b11_file, geom)
     b11_10m = np.repeat(np.repeat(b11_20m, 2, axis=0), 2, axis=1)

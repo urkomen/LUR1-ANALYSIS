@@ -14,7 +14,7 @@ class Pipeline:
             self.config = yaml.safe_load(f)
         self.scenes = []
         self.processed = []
-        print(f"Pipeline inicializado: {self.config['location']['name']}")
+        print(f'Pipeline inicializado: {self.config["location"]["name"]}')
 
     def download(self):
         self.scenes = _download(self.config)
@@ -32,10 +32,10 @@ class Pipeline:
         print(f'Preprocesado completado: {len(self.processed)} escena(s)')
 
     def classify(self):
-        print("[classify] pendiente de implementar")
+        print('[classify] pendiente de implementar')
 
     def detect_anomalies(self):
-        print("[detect_anomalies] pendiente de implementar")
+        print('[detect_anomalies] pendiente de implementar')
 
     def run_full(self):
         self.download()
@@ -44,9 +44,9 @@ class Pipeline:
         self.detect_anomalies()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="Ruta al fichero config.yaml")
+    parser.add_argument('--config', required=True, help='Ruta al fichero config.yaml')
     args = parser.parse_args()
 
     pipeline = Pipeline(args.config)
