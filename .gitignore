@@ -9,6 +9,9 @@ plan_LUR1.md
 # Figuras generadas
 figures/
 
+# Grafo de conocimiento (generado por graphify)
+graphify-out/
+
 # Python
 __pycache__/
 *.py[cod]
