@@ -10,6 +10,23 @@ detector de anomalías temporales sobre series de 12 meses de datos Sentinel-2.
 
 ---
 
+## Estado actual (25 julio 2026)
+
+| Fase | Estado | Progreso |
+|------|--------|----------|
+| **F1 — Entorno y exploración** | ✅ Completada | 100% (4/4 items) |
+| **F2.1 — Máscara de nubes y recorte** | ✅ Completada | 100% (5/5 items) |
+| **F2.2 — Índices espectrales** | 🟡 Funcional, incompleto | 86% (6/7 items; falta tests unitarios) |
+| **F2.3 — Visualizaciones** | 🟡 Parcial | 0% (notebook creado, no ejecutado; figuras no generadas) |
+| **F3–F5 — Clasificador, anomalías, presentación** | ❌ No iniciado | 0% |
+
+**Documentación:**
+- `documentacion.md` — ✅ Escrito (F1 + F2)
+- `plan_LUR1.md` — ✅ Actualizado
+- Grafo de conocimiento (`graphify-out/`) — ✅ Construido (55 nodos, 114 aristas)
+
+---
+
 ## Arquitectura del sistema
 
 El sistema recibe un fichero `config.yaml` como única entrada. Cambiar la ubicación,
@@ -171,12 +188,13 @@ de calidad para el README.
 
 ### 2.3 Visualizaciones científicas de los índices
 
-- [ ] Mapa de NDVI con paleta divergente (`RdYlGn`) y barra de color
-- [ ] Mapa de NDWI con paleta secuencial (`Blues`)
-- [ ] Mapa de MNDWI sobre la zona litoral
-- [ ] Añadir título, barra de escala y fuente ("Sentinel-2, ESA / Pipeline propio")
-- [ ] Exportar a `/figures/indices_costa_vasca.png` en alta resolución (300 dpi)
-- [ ] Añadir visualizaciones al `notebooks/02_clasificador.ipynb`
+- [ ] Ejecutar `notebooks/02_indices.ipynb` para generar los mapas (notebook creado pero pendiente ejecución)
+- [ ] Verificar mapa de NDVI con paleta divergente (`RdYlGn`) y barra de color
+- [ ] Verificar mapa de NDWI con paleta secuencial (`Blues`)
+- [ ] Verificar mapa de MNDWI sobre la zona litoral
+- [ ] Figuras exportadas a `/figures/indices_*.png` en resolución 150 dpi
+- [ ] Panel comparativo temporal NDVI en `/figures/ndvi_comparacion_temporal.png`
+- [ ] Histogramas de distribución en `/figures/histogramas_indices.png`
 
 **Entregables de F2:**
 
