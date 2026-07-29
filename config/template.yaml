@@ -14,8 +14,13 @@ satellite:
 indices: ["NDVI", "NDWI", "MNDWI"]   # Índices a calcular
 
 classifier:
-  classes: []       # Lista de clases de cobertura terrestre a clasificar
-  model: "random_forest"   # "cnn" disponible en v2
+  classes:         []      # Lista de clases de cobertura terrestre a clasificar
+  model:           "random_forest"   # "cnn" disponible en v2
+  labels_path:     ""      # Ruta al geojson de puntos etiquetados
+  reference_scene: ""      # Substring que identifica la escena usada para etiquetar
+  block_size_m:    500      # Tamaño de bloque (m) para el split espacial train/test
+  test_size:       0.25
+  random_state:    42
 
 anomaly_detector:
   method:          "statistical"   # "isolation_forest" disponible en v2

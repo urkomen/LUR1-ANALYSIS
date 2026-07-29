@@ -15,8 +15,13 @@ satellite:
 indices: ["NDVI", "NDWI", "MNDWI"]
 
 classifier:
-  classes: ["agua", "vegetacion", "urbano", "litoral"]
-  model:   "random_forest"
+  classes:         ["agua", "vegetacion", "urbano", "litoral"]
+  model:           "random_forest"
+  labels_path:     "data/labels/costa_vasca_labels.geojson"
+  reference_scene: "20241228"    # fecha de la escena usada para etiquetar en QGIS
+  block_size_m:    500           # tamaño de bloque para el split espacial train/test
+  test_size:       0.25
+  random_state:    42
 
 anomaly_detector:
   method:          "statistical"
