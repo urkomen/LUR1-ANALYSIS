@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from downloader import download as _download
 from preprocessor import preprocess as _preprocess
 from indices import calculate_indices
+from classifier import classify as _classify
 
 
 class Pipeline:
@@ -15,6 +16,8 @@ class Pipeline:
             self.config = yaml.safe_load(f)
         self.scenes = []
         self.processed = []
+        self.model = None
+        self.metrics = None
         print(f'Pipeline inicializado: {self.config["location"]["name"]}')
 
     def download(self):
@@ -38,7 +41,10 @@ class Pipeline:
         print(f'Preprocesado completado: {len(self.processed)} escena(s)')
 
     def classify(self):
-        print('[classify] pendiente de implementar')
+        if not self.processed:
+            print('[classify] No hay escenas preprocesadas')
+            return
+        self.model, self.metrics = _classify(self.processed, self.config)
 
     def detect_anomalies(self):
         print('[detect_anomalies] pendiente de implementar')

@@ -11,7 +11,7 @@ from shapely.geometry import box, mapping
 INVALID_SCL = {0, 1, 3, 8, 9, 10}
 
 BANDS_10M = ['B02', 'B03', 'B04', 'B08']
-BANDS_20M = ['B05', 'B06', 'B07', 'B8A', 'B11', 'B12']
+BANDS_20M = ['B05', 'B11', 'B12']
 
 
 def _find_img_dirs(scene_dir):
@@ -94,15 +94,16 @@ def preprocess(scene_dir, config):
         data[~mask] = np.nan
         bands[band_name] = data
 
-    # B11 (SWIR a 20m) — necesaria para MNDWI, resampled a 10m
-    b11_file = next(r20m.glob('*_B11_20m.jp2'))
-    b11_20m, _, _ = clip_to_bbox(b11_file, geom)
-    b11_10m = np.repeat(np.repeat(b11_20m, 2, axis=0), 2, axis=1)
-    h = min(b11_10m.shape[0], valid_10m.shape[0])
-    w = min(b11_10m.shape[1], valid_10m.shape[1])
-    b11_10m = b11_10m[:h, :w]
-    b11_10m[~valid_10m[:h, :w]] = np.nan
-    bands['B11'] = b11_10m
+    # Bandas a 20m (red edge y SWIR) — resampled a 10m con nearest neighbor
+    for band_name in BANDS_20M:
+        f = next(r20m.glob(f'*_{band_name}_20m.jp2'))
+        data_20m, _, _ = clip_to_bbox(f, geom)
+        data_10m = np.repeat(np.repeat(data_20m, 2, axis=0), 2, axis=1)
+        h = min(data_10m.shape[0], valid_10m.shape[0])
+        w = min(data_10m.shape[1], valid_10m.shape[1])
+        data_10m = data_10m[:h, :w]
+        data_10m[~valid_10m[:h, :w]] = np.nan
+        bands[band_name] = data_10m
 
     print(f'  Bandas procesadas: {list(bands.keys())}')
     print(f'  Tamaño del recorte: {list(bands.values())[0].shape}')
