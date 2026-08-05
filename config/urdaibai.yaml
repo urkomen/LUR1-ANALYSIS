@@ -1,0 +1,29 @@
+location:
+  name: "Ría de Urdaibai y alrededores — Gernika, Mundaka, Bermeo"
+  bbox: [-2.85, 43.25, -2.50, 43.50]   # [lon_min, lat_min, lon_max, lat_max] — área ampliada ~35×25 km
+
+dates:
+  start: "2024-01-01"
+  end:   "2025-12-31"
+
+satellite:
+  sensor:        "Sentinel-2"
+  product_level: "L2A"
+  max_cloud_pct: 30
+  tile:          "T30TWN"    # mismo tile que Costa Vasca
+
+indices: ["NDVI", "NDWI", "MNDWI"]
+
+classifier:
+  classes:         ["agua", "vegetacion", "urbano", "litoral"]
+  model:           "random_forest"
+  labels_path:     "data/labels/urdaibai_labels.geojson"
+  reference_scene: "20241228"
+  block_size_m:    500
+  test_size:       0.25
+  random_state:    42
+
+anomaly_detector:
+  method:          "statistical"
+  window_days:     30
+  threshold_sigma: 2.0

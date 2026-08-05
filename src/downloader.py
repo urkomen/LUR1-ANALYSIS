@@ -80,7 +80,7 @@ def _download_scene(scene, output_path, token):
     return dest
 
 
-def download(config, max_scenes=3):
+def download(config, max_scenes=500):
     location = config['location']['name']
     bbox = config['location']['bbox']
     date_start = config['dates']['start']
