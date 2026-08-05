@@ -8,6 +8,7 @@ from downloader import download as _download
 from preprocessor import preprocess as _preprocess
 from indices import calculate_indices
 from classifier import classify as _classify
+from anomaly_detector import detect_anomalies as _detect_anomalies
 
 
 class Pipeline:
@@ -47,7 +48,7 @@ class Pipeline:
         self.model, self.metrics = _classify(self.processed, self.config)
 
     def detect_anomalies(self):
-        print('[detect_anomalies] pendiente de implementar')
+        self.anomalies = _detect_anomalies(self.config)
 
     def run_full(self):
         self.download()

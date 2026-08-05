@@ -4,12 +4,12 @@ location:
 
 dates:
   start: "2024-01-01"
-  end:   "2024-12-31"
+  end:   "2025-12-31"
 
 satellite:
   sensor:        "Sentinel-2"
   product_level: "L2A"
-  max_cloud_pct: 20
+  max_cloud_pct: 30
   tile:          "T30TWN"    # tile Sentinel-2 que cubre Zarautz-Donostia
 
 indices: ["NDVI", "NDWI", "MNDWI"]
