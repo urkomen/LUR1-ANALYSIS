@@ -50,7 +50,7 @@ def mask_clouds(scene_dir, bbox, max_cloud_pct=20):
 
     # Upscale 20m → 10m (factor 2) con nearest neighbor
     valid_10m = np.repeat(np.repeat(valid_20m, 2, axis=0), 2, axis=1)
-    return valid_10m, cloud_pct
+    return valid_10m, valid_20m, cloud_pct
 
 
 def clip_to_bbox(band_file, geom):
@@ -76,34 +76,41 @@ def preprocess(scene_dir, config):
     geom = _bbox_to_geom(bbox, crs.to_epsg() or crs.to_string())
 
     print('Aplicando máscara de nubes (SCL)...')
-    valid_10m, cloud_pct = mask_clouds(scene_dir, bbox, max_cloud)
+    valid_10m, valid_20m, cloud_pct = mask_clouds(scene_dir, bbox, max_cloud)
 
     print('Recortando bandas a bbox...')
-    bands = {}
+    raw_bands = {}
     transform = None
 
     for band_name in BANDS_10M:
         f = next(r10m.glob(f'*_{band_name}_10m.jp2'))
         data, transform, _ = clip_to_bbox(f, geom)
-
-        h = min(data.shape[0], valid_10m.shape[0])
-        w = min(data.shape[1], valid_10m.shape[1])
-        data = data[:h, :w]
-        mask = valid_10m[:h, :w]
-
-        data[~mask] = np.nan
-        bands[band_name] = data
+        raw_bands[band_name] = data
 
     # Bandas a 20m (red edge y SWIR) — resampled a 10m con nearest neighbor
     for band_name in BANDS_20M:
         f = next(r20m.glob(f'*_{band_name}_20m.jp2'))
         data_20m, _, _ = clip_to_bbox(f, geom)
-        data_10m = np.repeat(np.repeat(data_20m, 2, axis=0), 2, axis=1)
-        h = min(data_10m.shape[0], valid_10m.shape[0])
-        w = min(data_10m.shape[1], valid_10m.shape[1])
-        data_10m = data_10m[:h, :w]
-        data_10m[~valid_10m[:h, :w]] = np.nan
-        bands[band_name] = data_10m
+
+        # Sincronizar tamaños a 20m antes de upscalear
+        h20, w20 = min(data_20m.shape[0], valid_20m.shape[0]), min(data_20m.shape[1], valid_20m.shape[1])
+        data_20m = data_20m[:h20, :w20]
+
+        # Upscalear ×2 a 10m
+        raw_bands[band_name] = np.repeat(np.repeat(data_20m, 2, axis=0), 2, axis=1)
+
+    # Distintas fuentes de recorte (10m directo, 20m upscaled, máscara) pueden diferir
+    # en ±1 píxel por redondeo del recorte de rasterio. Sincronizamos todas al tamaño
+    # mínimo común antes de aplicar la máscara y devolver las bandas.
+    common_h = min([valid_10m.shape[0]] + [b.shape[0] for b in raw_bands.values()])
+    common_w = min([valid_10m.shape[1]] + [b.shape[1] for b in raw_bands.values()])
+    valid_10m_common = valid_10m[:common_h, :common_w]
+
+    bands = {}
+    for band_name, data in raw_bands.items():
+        data = data[:common_h, :common_w]
+        data[~valid_10m_common] = np.nan
+        bands[band_name] = data
 
     print(f'  Bandas procesadas: {list(bands.keys())}')
     print(f'  Tamaño del recorte: {list(bands.values())[0].shape}')
