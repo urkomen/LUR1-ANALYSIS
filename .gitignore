@@ -3,8 +3,10 @@ data/raw/
 data/processed/
 data/models/
 
-# plan de trabajo
-plan_LUR1.md 
+# Plan de trabajo y documentación interna (solo local)
+plan_LUR1.md
+documentacion.md
+posts/
 
 # Figuras generadas
 figures/
