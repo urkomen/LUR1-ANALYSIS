@@ -8,7 +8,6 @@ dependencies:
   - libgdal-jp2openjpeg
   - rasterio
   - geopandas
-  - xarray
   - pyproj
   - shapely
   - fiona
@@ -16,11 +15,9 @@ dependencies:
   - pandas
   - scikit-learn
   - matplotlib
-  - folium
   - joblib
   - pyyaml
   - jupyter
   - ipykernel
+  - requests
   - pip
-  - pip:
-      - cdsetool

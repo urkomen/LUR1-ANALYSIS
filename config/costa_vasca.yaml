@@ -14,9 +14,14 @@ satellite:
 
 indices: ["NDVI", "NDWI", "MNDWI"]
 
+processing:
+  max_bbox_cloud_pct:   50
+  min_ref_scenes:       5
+
+# Única zona con etiquetas manuales: es la que entrena el modelo "rf"
+# que después reutilizan todas las demás.
 classifier:
-  classes:         ["agua", "vegetacion", "urbano", "litoral"]
-  model:           "random_forest"
+  model_name:      "rf"
   labels_path:     "data/labels/costa_vasca_labels.geojson"
   reference_scene: "20241228"    # fecha de la escena usada para etiquetar en QGIS
   block_size_m:    500           # tamaño de bloque para el split espacial train/test
@@ -24,6 +29,5 @@ classifier:
   random_state:    42
 
 anomaly_detector:
-  method:          "statistical"
-  window_days:     30
+  window_days:     45      # referencia estacional: ±45 días, agrupando todos los años
   threshold_sigma: 2.0

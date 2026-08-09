@@ -14,16 +14,13 @@ satellite:
 
 indices: ["NDVI", "NDWI", "MNDWI"]
 
+processing:
+  max_bbox_cloud_pct:   50
+  min_ref_scenes:       5
+
 classifier:
-  classes:         ["agua", "vegetacion", "urbano", "litoral"]
-  model:           "random_forest"
-  labels_path:     "data/labels/urdaibai_labels.geojson"
-  reference_scene: "20241228"
-  block_size_m:    500
-  test_size:       0.25
-  random_state:    42
+  model_name: "rf"    # modelo entrenado en Costa Vasca
 
 anomaly_detector:
-  method:          "statistical"
-  window_days:     30
+  window_days:     45      # referencia estacional: ±45 días, agrupando todos los años
   threshold_sigma: 2.0

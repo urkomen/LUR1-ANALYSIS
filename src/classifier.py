@@ -9,19 +9,13 @@ from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 
 from indices import calculate_indices
+from paths import MODELS_DIR
 
 BAND_NAMES = ['B02', 'B03', 'B04', 'B05', 'B08', 'B11', 'B12']
 INDEX_NAMES = ['NDVI', 'NDWI', 'MNDWI']
-FEATURE_NAMES = BAND_NAMES + INDEX_NAMES
 
 
 def extract_features(scene, labels_path):
-    '''
-    Extrae el vector de 10 features (7 bandas + 3 índices) para cada punto
-    etiquetado que cae dentro de la escena. Descarta puntos fuera del recorte
-    o sobre píxeles enmascarados (nube/sin datos).
-    Devuelve X (n_muestras, 10), y (etiquetas de clase) y coords (x, y en CRS de la escena).
-    '''
     labels = gpd.read_file(labels_path)
     labels = labels[labels['etiquetas'].notna()]
     if labels.crs is not None and labels.crs.to_string() != scene['crs'].to_string():
@@ -50,13 +44,6 @@ def extract_features(scene, labels_path):
 
 
 def spatial_train_test_split(X, y, coords, block_size_m, test_size, random_state):
-    '''
-    Divide el área de estudio en bloques cuadrados de block_size_m y asigna
-    bloques completos (no píxeles individuales) a train o test, estratificando
-    por la clase mayoritaria de cada bloque. Evita que píxeles vecinos —
-    espectralmente casi idénticos por autocorrelación espacial — se repartan
-    entre train y test e inflen las métricas de forma artificial.
-    '''
     block_ids = np.array([
         f'{int(x // block_size_m)}_{int(y // block_size_m)}' for x, y in coords
     ])
@@ -85,56 +72,15 @@ def spatial_train_test_split(X, y, coords, block_size_m, test_size, random_state
     return X[train_mask], X[test_mask], y[train_mask], y[test_mask]
 
 
-def train_classifier(X_train, y_train, random_state):
-    '''Entrena un RandomForestClassifier sobre los features de train.'''
-    model = RandomForestClassifier(n_estimators=200, random_state=random_state)
-    model.fit(X_train, y_train)
-    return model
-
-
-def evaluate_classifier(model, X_test, y_test):
+def train(scene, config, model_name='rf', force=False):
     '''
-    Evalúa el modelo sobre test: accuracy global, F1 por clase (weighted y
-    macro) y matriz de confusión. Devuelve un dict con las métricas.
-    '''
-    y_pred = model.predict(X_test)
-    accuracy = model.score(X_test, y_test)
-    f1_weighted = f1_score(y_test, y_pred, average='weighted')
-    f1_macro = f1_score(y_test, y_pred, average='macro')
-    labels_sorted = sorted(np.unique(np.concatenate([y_test, y_pred])))
-    matrix = confusion_matrix(y_test, y_pred, labels=labels_sorted)
+    Entrena un Random Forest con split espacial sobre una única escena
+    etiquetada y lo guarda en data/models/<model_name>.joblib.
 
-    print(f'  Accuracy: {accuracy:.3f}')
-    print(f'  F1 (weighted): {f1_weighted:.3f}')
-    print(f'  F1 (macro): {f1_macro:.3f}')
-    print(f'  Clases: {labels_sorted}')
-    print(f'  Matriz de confusión:\n{matrix}')
-
-    return {
-        'accuracy': accuracy,
-        'f1_weighted': f1_weighted,
-        'f1_macro': f1_macro,
-        'labels': labels_sorted,
-        'confusion_matrix': matrix,
-    }
-
-
-def classify(scenes, config):
-    '''
-    Extrae features de la escena de referencia, entrena un Random Forest con
-    split espacial train/test y guarda el modelo entrenado en data/models/.
-    Devuelve el modelo y las métricas de evaluación.
+    Paso independiente del pipeline: el repositorio incluye un modelo ya
+    entrenado, así que esto solo hace falta si quieres uno propio.
     '''
     clf_config = config['classifier']
-    reference_tag = clf_config['reference_scene']
-
-    scene = next(
-        (s for s in scenes if reference_tag in s['scene_dir']),
-        None,
-    )
-    if scene is None:
-        print(f'  No se encontró la escena de referencia ({reference_tag}) entre las procesadas.')
-        return None, None
 
     print(f'Extrayendo features de: {Path(scene["scene_dir"]).name}')
     X, y, coords = extract_features(scene, clf_config['labels_path'])
@@ -148,14 +94,137 @@ def classify(scenes, config):
     )
 
     print('Entrenando RandomForestClassifier...')
-    model = train_classifier(X_train, y_train, clf_config['random_state'])
+    model = RandomForestClassifier(n_estimators=200, random_state=clf_config['random_state'])
+    model.fit(X_train, y_train)
 
     print('Evaluando sobre test...')
-    metrics = evaluate_classifier(model, X_test, y_test)
+    y_pred = model.predict(X_test)
+    accuracy = model.score(X_test, y_test)
+    f1_w = f1_score(y_test, y_pred, average='weighted')
+    f1_m = f1_score(y_test, y_pred, average='macro')
+    labels_sorted = sorted(np.unique(np.concatenate([y_test, y_pred])))
+    matrix = confusion_matrix(y_test, y_pred, labels=labels_sorted)
 
-    model_path = Path('data/models/rf_costa_vasca.joblib')
+    print(f'  Accuracy: {accuracy:.3f}')
+    print(f'  F1 (weighted): {f1_w:.3f}')
+    print(f'  F1 (macro): {f1_m:.3f}')
+    print(f'  Clases: {labels_sorted}')
+    print(f'  Matriz de confusión:\n{matrix}')
+
+    model_path = MODELS_DIR / f'{model_name}.joblib'
+    if model_path.exists() and not force:
+        print(f'\nYa existe {model_path} y no se ha indicado --force.')
+        print('Usa --name para guardarlo con otro nombre, o --force para sobrescribirlo.')
+        return model, None
+
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, model_path)
     print(f'Modelo guardado en: {model_path}')
 
-    return model, metrics
+    return model, {
+        'accuracy': accuracy,
+        'f1_weighted': f1_w,
+        'f1_macro': f1_m,
+        'labels': labels_sorted,
+        'confusion_matrix': matrix,
+    }
+
+
+def model_name_from_config(config):
+    '''Modelo que debe usarse para una zona; "rf" es el que trae el repositorio.'''
+    return (config.get('classifier') or {}).get('model_name', 'rf')
+
+
+def load_model(model_name='rf'):
+    model_path = MODELS_DIR / f'{model_name}.joblib'
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f'Modelo no encontrado: {model_path}.\n'
+            f'El repositorio incluye data/models/rf.joblib; si lo has borrado, '
+            f'recupéralo con "git checkout data/models/rf.joblib" o entrena uno '
+            f'con "python src/classifier.py --config <config con etiquetas>".'
+        )
+    print(f'Modelo cargado: {model_path}')
+    return joblib.load(model_path)
+
+
+def classify_scene(scene, model):
+    '''
+    Clasifica una escena preprocesada y devuelve el mapa de clases con la
+    misma forma que las bandas. Los píxeles enmascarados (nube, sin datos)
+    quedan como "sin_datos".
+    '''
+    height, width = scene['bands'][BAND_NAMES[0]].shape
+    idx_arrays = calculate_indices(scene['bands'], INDEX_NAMES)
+
+    stack = np.stack(
+        [scene['bands'][b].ravel() for b in BAND_NAMES]
+        + [idx_arrays[i].ravel() for i in INDEX_NAMES],
+        axis=1,
+    )
+    valid = ~np.any(np.isnan(stack), axis=1)
+    predictions = np.full(stack.shape[0], 'sin_datos', dtype=object)
+    predictions[valid] = model.predict(stack[valid])
+    return predictions.reshape(height, width)
+
+
+def class_composition(classification_map):
+    '''Porcentaje de píxeles de cada clase, excluyendo los enmascarados.'''
+    classes, counts = np.unique(classification_map, return_counts=True)
+    keep = classes != 'sin_datos'
+    classes, counts = classes[keep], counts[keep]
+    total = counts.sum()
+    if total == 0:
+        return {}
+    return {c: round(n / total * 100, 2) for c, n in zip(classes, counts)}
+
+
+if __name__ == '__main__':
+    import argparse
+    import sys
+    import yaml
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from preprocessor import preprocess
+    from paths import zone_from_config, zone_scene_dirs
+
+    parser = argparse.ArgumentParser(
+        description='Entrena un clasificador de cobertura terrestre. '
+                    'El repositorio ya incluye uno entrenado (rf); esto solo '
+                    'hace falta si quieres el tuyo propio.'
+    )
+    parser.add_argument('--config', required=True,
+                        help='Config YAML con classifier.labels_path y classifier.reference_scene')
+    parser.add_argument('--name', default=None,
+                        help='Nombre del modelo de salida (por defecto, classifier.model_name del config)')
+    parser.add_argument('--force', action='store_true',
+                        help='Sobrescribe el modelo si ya existe')
+    args = parser.parse_args()
+
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+
+    clf_cfg = cfg.get('classifier') or {}
+    missing = [k for k in ('labels_path', 'reference_scene') if not clf_cfg.get(k)]
+    if missing:
+        print(f'El config {args.config} no sirve para entrenar: falta classifier.{", classifier.".join(missing)}')
+        print('Solo las zonas con etiquetas manuales pueden entrenar un modelo.')
+        sys.exit(1)
+
+    zone = zone_from_config(args.config)
+    reference_tag = clf_cfg['reference_scene']
+
+    # Solo se preprocesa la escena de referencia: es la única que se usa para
+    # entrenar, y preprocesar la serie entera consumiría memoria para nada.
+    scene_dirs = zone_scene_dirs(zone)
+    reference_dir = next((sd for sd in scene_dirs if reference_tag in sd.name), None)
+    if reference_dir is None:
+        print(f'No se encontró la escena de referencia "{reference_tag}" entre las {len(scene_dirs)} de la zona "{zone}".')
+        sys.exit(1)
+
+    print(f'Preprocesando escena de referencia: {reference_dir.name}')
+    scene = preprocess(reference_dir, cfg)
+    scene['indices'] = calculate_indices(scene['bands'], cfg.get('indices', INDEX_NAMES))
+
+    model_name = args.name or clf_cfg.get('model_name', 'rf')
+    train(scene, cfg, model_name=model_name, force=args.force)

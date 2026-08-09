@@ -3,26 +3,46 @@ location:
   bbox: []          # [lon_min, lat_min, lon_max, lat_max] en WGS84
 
 dates:
-  start: ""         # Fecha inicio en formato YYYY-MM-DD
-  end:   ""         # Fecha fin en formato YYYY-MM-DD
+  start: ""         # Fecha inicio en formato YYYY-MM-DD (inclusiva)
+  end:   ""         # Fecha fin en formato YYYY-MM-DD (inclusiva)
 
 satellite:
   sensor:        "Sentinel-2"   # No cambiar en v1
   product_level: "L2A"          # L2A = ya corregido atmosféricamente por ESA
-  max_cloud_pct: 20             # Descartar escenas con más del X% de nubes
+  max_cloud_pct: 20             # Nubosidad máxima de la escena completa, al descargar
+  # tile: "T30TWN"              # Opcional. La búsqueda ya filtra por bbox; usa
+                                # este campo solo si el bbox cruza varios tiles
+                                # y quieres restringirlo a uno concreto.
 
 indices: ["NDVI", "NDWI", "MNDWI"]   # Índices a calcular
 
+processing:
+  # Nubosidad máxima medida dentro del bbox ya recortado. Es distinto de
+  # satellite.max_cloud_pct, que filtra la escena entera en la descarga: una
+  # escena puede tener muchas nubes en global y estar despejada sobre la zona.
+  max_bbox_cloud_pct: 50
+  # Escenas de referencia mínimas para evaluar una escena. Por debajo, la
+  # desviación típica no es fiable y la escena se omite (se avisa por consola).
+  min_ref_scenes:     5
+
 classifier:
-  classes:         []      # Lista de clases de cobertura terrestre a clasificar
-  model:           "random_forest"   # "cnn" disponible en v2
-  labels_path:     ""      # Ruta al geojson de puntos etiquetados
-  reference_scene: ""      # Substring que identifica la escena usada para etiquetar
-  block_size_m:    500      # Tamaño de bloque (m) para el split espacial train/test
-  test_size:       0.25
-  random_state:    42
+  # Modelo de data/models/ que se usa para clasificar. El repositorio incluye
+  # "rf" ya entrenado, así que no hace falta tocar nada para empezar.
+  model_name: "rf"
+  # Los campos siguientes solo hacen falta si vas a entrenar tu propio modelo
+  # con: python src/classifier.py --config <este fichero> --name mi_modelo
+  # labels_path:     ""    # geojson de puntos etiquetados (columna "etiquetas")
+  # reference_scene: ""    # substring que identifica la escena usada al etiquetar
+  # block_size_m:    500   # tamaño de bloque (m) del split espacial train/test
+  # test_size:       0.25
+  # random_state:    42
 
 anomaly_detector:
-  method:          "statistical"   # "isolation_forest" disponible en v2
-  window_days:     30              # Ventana temporal para calcular estadísticos
-  threshold_sigma: 2.0             # Umbral en sigmas para marcar anomalía
+  # Cada escena se compara con las de ±window_days alrededor de su día del año,
+  # agrupando todos los años disponibles y excluyéndose a sí misma.
+  # Es un compromiso: ventanas estrechas comparan contra fenología más parecida
+  # pero reúnen pocas escenas (sigma inestable); ventanas anchas estabilizan la
+  # sigma pero mezclan estados de vegetación distintos y diluyen las anomalías.
+  # Con 2 años de datos, 45 funciona bien; súbelo si la zona es muy nubosa.
+  window_days:     45
+  threshold_sigma: 2.0     # Umbral en sigmas para marcar anomalía
