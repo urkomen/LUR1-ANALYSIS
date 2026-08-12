@@ -6,6 +6,8 @@ from rasterio.mask import mask as rio_mask
 from pyproj import Transformer
 from shapely.geometry import box, mapping
 
+from paths import processing_opts
+
 # Clases SCL que marcamos como inválidas
 # 0=sin datos, 1=saturado, 3=sombra de nube, 8=nube media, 9=nube alta, 10=cirrus
 INVALID_SCL = {0, 1, 3, 8, 9, 10}
@@ -29,10 +31,17 @@ def _bbox_to_geom(bbox, crs):
     return [mapping(box(x_min, y_min, x_max, y_max))]
 
 
-def mask_clouds(scene_dir, bbox, max_cloud_pct=20):
+def mask_clouds(scene_dir, bbox, max_bbox_cloud_pct=50):
     '''
     Lee la SCL, recorta al bbox y devuelve máscara booleana válida a 10m.
     True = píxel válido, False = nube/sombra/sin datos.
+
+    `max_bbox_cloud_pct` es solo informativo aquí (el filtrado real de
+    escenas nubosas lo hace timeseries/anomaly_detector con este mismo
+    umbral): sirve para que el aviso en consola compare contra el criterio
+    que de verdad decide si la escena se usa, no contra
+    satellite.max_cloud_pct, que es un umbral distinto — ese filtra la
+    escena completa al descargar, no la nubosidad ya recortada al bbox.
     '''
     r10m, r20m = _find_img_dirs(scene_dir)
     scl_file = next(r20m.glob('*_SCL_20m.jp2'))
@@ -45,8 +54,10 @@ def mask_clouds(scene_dir, bbox, max_cloud_pct=20):
     valid_20m = ~np.isin(scl, list(INVALID_SCL))
     cloud_pct = (~valid_20m).sum() / valid_20m.size * 100
     print(f'  Cobertura nubosa en bbox: {cloud_pct:.1f}%')
-    if cloud_pct > max_cloud_pct:
-        print(f'  AVISO: supera el umbral de {max_cloud_pct}%')
+    if cloud_pct > max_bbox_cloud_pct:
+        print(f'  AVISO: supera el umbral de {max_bbox_cloud_pct}% del bbox '
+              f'(processing.max_bbox_cloud_pct) — la escena se descartará '
+              f'de la climatología de referencia')
 
     # Upscale 20m → 10m (factor 2) con nearest neighbor
     valid_10m = np.repeat(np.repeat(valid_20m, 2, axis=0), 2, axis=1)
@@ -66,7 +77,7 @@ def preprocess(scene_dir, config):
     Devuelve dict con arrays por banda (NaN donde hay nube) y metadatos.
     '''
     bbox = config['location']['bbox']
-    max_cloud = config['satellite']['max_cloud_pct']
+    max_bbox_cloud = processing_opts(config)['max_bbox_cloud_pct']
 
     r10m, r20m = _find_img_dirs(scene_dir)
 
@@ -76,7 +87,7 @@ def preprocess(scene_dir, config):
     geom = _bbox_to_geom(bbox, crs.to_epsg() or crs.to_string())
 
     print('Aplicando máscara de nubes (SCL)...')
-    valid_10m, valid_20m, cloud_pct = mask_clouds(scene_dir, bbox, max_cloud)
+    valid_10m, valid_20m, cloud_pct = mask_clouds(scene_dir, bbox, max_bbox_cloud)
 
     print('Recortando bandas a bbox...')
     raw_bands = {}

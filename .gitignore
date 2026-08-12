@@ -1,11 +1,12 @@
 # Datos — nunca subir a GitHub
 data/raw/
 data/processed/
-data/models/
-# ...salvo el clasificador entrenado (420 KB): sin él el pipeline no
-# funcionaría en un clon limpio ni en zonas sin etiquetas propias.
-!data/models/
-!data/models/rf.joblib
+# data/models/*.joblib (fuera de production/, generados por el notebook o la
+# CLI de entrenamiento) son zona de pruebas y no se versionan. Solo
+# data/models/production/ se sube — es el modelo que usa el pipeline, y sin
+# él el pipeline no funcionaría en un clon limpio.
+data/models/*
+!data/models/production/
 
 # Plan de trabajo y documentación interna (solo local)
 plan_LUR1.md

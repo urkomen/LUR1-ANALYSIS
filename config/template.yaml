@@ -26,9 +26,10 @@ processing:
   min_ref_scenes:     5
 
 classifier:
-  # Modelo de data/models/ que se usa para clasificar. El repositorio incluye
-  # "rf" ya entrenado, así que no hace falta tocar nada para empezar.
-  model_name: "rf"
+  # Modelo de data/models/production/ que usa el pipeline para clasificar. El
+  # repositorio incluye "rf_prod" ya entrenado, así que no hace falta tocar
+  # nada para empezar.
+  model_name: "rf_prod"
   # Los campos siguientes solo hacen falta si vas a entrenar tu propio modelo
   # con: python src/classifier.py --config <este fichero> --name mi_modelo
   # labels_path:     ""    # geojson de puntos etiquetados (columna "etiquetas")

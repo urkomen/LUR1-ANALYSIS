@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 
 from indices import calculate_indices
-from paths import MODELS_DIR
+from paths import MODELS_DIR, PRODUCTION_MODELS_DIR
 
 BAND_NAMES = ['B02', 'B03', 'B04', 'B05', 'B08', 'B11', 'B12']
 INDEX_NAMES = ['NDVI', 'NDWI', 'MNDWI']
@@ -77,8 +77,10 @@ def train(scene, config, model_name='rf', force=False):
     Entrena un Random Forest con split espacial sobre una única escena
     etiquetada y lo guarda en data/models/<model_name>.joblib.
 
-    Paso independiente del pipeline: el repositorio incluye un modelo ya
-    entrenado, así que esto solo hace falta si quieres uno propio.
+    Esto NUNCA toca data/models/production/, que es el modelo que usa el
+    pipeline (ver load_model). Entrenar aquí es una zona de pruebas: para que
+    un modelo entrenado pase a ser el que usa el pipeline hay que copiarlo a
+    mano a data/models/production/<model_name>.joblib.
     '''
     clf_config = config['classifier']
 
@@ -131,18 +133,24 @@ def train(scene, config, model_name='rf', force=False):
 
 
 def model_name_from_config(config):
-    '''Modelo que debe usarse para una zona; "rf" es el que trae el repositorio.'''
-    return (config.get('classifier') or {}).get('model_name', 'rf')
+    '''Modelo que debe usarse para una zona; "rf_prod" es el que trae el repositorio.'''
+    return (config.get('classifier') or {}).get('model_name', 'rf_prod')
 
 
-def load_model(model_name='rf'):
-    model_path = MODELS_DIR / f'{model_name}.joblib'
+def load_model(model_name='rf_prod'):
+    '''
+    Carga el modelo de producción (data/models/production/<model_name>.joblib)
+    — el que usa el pipeline para clasificar. Es distinto del que genera
+    train(): ese escribe en data/models/, no en production/.
+    '''
+    model_path = PRODUCTION_MODELS_DIR / f'{model_name}.joblib'
     if not model_path.exists():
         raise FileNotFoundError(
             f'Modelo no encontrado: {model_path}.\n'
-            f'El repositorio incluye data/models/rf.joblib; si lo has borrado, '
-            f'recupéralo con "git checkout data/models/rf.joblib" o entrena uno '
-            f'con "python src/classifier.py --config <config con etiquetas>".'
+            f'El repositorio incluye data/models/production/rf_prod.joblib; si lo has '
+            f'borrado, recupéralo con "git checkout data/models/production/rf_prod.joblib" '
+            f'o entrena uno propio con "python src/classifier.py --config <config con '
+            f'etiquetas>" y cópialo a mano a data/models/production/.'
         )
     print(f'Modelo cargado: {model_path}')
     return joblib.load(model_path)
@@ -226,5 +234,8 @@ if __name__ == '__main__':
     scene = preprocess(reference_dir, cfg)
     scene['indices'] = calculate_indices(scene['bands'], cfg.get('indices', INDEX_NAMES))
 
-    model_name = args.name or clf_cfg.get('model_name', 'rf')
+    # Fijo, no lee classifier.model_name del config: esa clave dice qué modelo
+    # de producción usa el pipeline, no qué nombre debe tener un entrenamiento
+    # de pruebas nuevo — son cosas distintas aunque compartan config.
+    model_name = args.name or 'rf'
     train(scene, cfg, model_name=model_name, force=args.force)

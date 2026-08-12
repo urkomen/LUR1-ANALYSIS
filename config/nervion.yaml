@@ -19,7 +19,7 @@ processing:
   min_ref_scenes:       5
 
 classifier:
-  model_name: "rf"    # modelo entrenado en Costa Vasca
+  model_name: "rf_prod"    # modelo entrenado en Costa Vasca
 
 anomaly_detector:
   window_days:     45      # referencia estacional: ±45 días, agrupando todos los años

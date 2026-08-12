@@ -13,6 +13,7 @@ from pathlib import Path
 RAW_DIR = Path('data/raw')
 PROCESSED_DIR = Path('data/processed')
 MODELS_DIR = Path('data/models')
+PRODUCTION_MODELS_DIR = MODELS_DIR / 'production'
 FIGURES_DIR = Path('figures')
 
 

@@ -18,10 +18,10 @@ processing:
   max_bbox_cloud_pct:   50
   min_ref_scenes:       5
 
-# Única zona con etiquetas manuales: es la que entrena el modelo "rf"
+# Única zona con etiquetas manuales: es la que entrena el modelo "rf_prod"
 # que después reutilizan todas las demás.
 classifier:
-  model_name:      "rf"
+  model_name:      "rf_prod"
   labels_path:     "data/labels/costa_vasca_labels.geojson"
   reference_scene: "20241228"    # fecha de la escena usada para etiquetar en QGIS
   block_size_m:    500           # tamaño de bloque para el split espacial train/test
