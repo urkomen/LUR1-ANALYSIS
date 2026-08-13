@@ -197,14 +197,15 @@ if __name__ == '__main__':
     from paths import zone_from_config, zone_scene_dirs
 
     parser = argparse.ArgumentParser(
-        description='Entrena un clasificador de cobertura terrestre. '
-                    'El repositorio ya incluye uno entrenado (rf); esto solo '
-                    'hace falta si quieres el tuyo propio.'
+        description='Entrena un clasificador de cobertura terrestre en data/models/ '
+                    '(zona de pruebas). El repositorio ya incluye uno de producción '
+                    '(data/models/production/rf_prod.joblib); esto solo hace falta '
+                    'si quieres entrenar el tuyo propio.'
     )
     parser.add_argument('--config', required=True,
                         help='Config YAML con classifier.labels_path y classifier.reference_scene')
     parser.add_argument('--name', default=None,
-                        help='Nombre del modelo de salida (por defecto, classifier.model_name del config)')
+                        help='Nombre del modelo de salida en data/models/ (por defecto, "rf")')
     parser.add_argument('--force', action='store_true',
                         help='Sobrescribe el modelo si ya existe')
     args = parser.parse_args()

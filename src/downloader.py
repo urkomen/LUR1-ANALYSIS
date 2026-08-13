@@ -194,8 +194,14 @@ def _download_scene(scene, output_path, tokens):
     '''
     scene_id = scene['Id']
     name = scene['Name']
+    safe_name = name if name.endswith('.SAFE') else f'{name}.SAFE'
+    safe_dir = output_path / safe_name
     dest = output_path / f'{name}.zip'
     partial = output_path / f'{name}.zip.part'
+
+    if safe_dir.is_dir():
+        print(f'  · Ya extraída, omitiendo descarga: {name}')
+        return safe_dir
 
     if dest.exists():
         print(f'  · Ya existe, omitiendo: {name}')
@@ -230,6 +236,7 @@ def _download_scene(scene, output_path, tokens):
 
 
 def download(config, zone, max_scenes=500):
+    '''Devuelve (escenas_encontradas, nombres_de_escenas_fallidas).'''
     location = config['location']['name']
     bbox = config['location']['bbox']
     date_start = config['dates']['start']
@@ -251,9 +258,14 @@ def download(config, zone, max_scenes=500):
 
     if not scenes:
         print('No se encontraron escenas con los criterios del config.')
-        return []
+        return [], []
 
-    print(f'Encontradas {len(scenes)} escena(s). Descargando...')
+    print(f'Encontradas {len(scenes)} escena(s) detectadas.')
+    if len(scenes) == max_scenes:
+        print(f'  AVISO: coincide con el límite de la consulta (max_scenes={max_scenes}); '
+              f'puede haber más escenas en el catálogo sin traer. La API no pagina '
+              f'aquí — si esperabas más, revisa el rango de fechas o el bbox.')
+    print('Descargando...')
     for s in scenes:
         print(f'  · {s["Name"]}')
 
@@ -269,13 +281,14 @@ def download(config, zone, max_scenes=500):
         if _download_scene(scene, RAW_DIR, tokens) is None:
             fallidas.append(scene['Name'])
 
+    completadas = len(scenes) - len(fallidas)
+    print(f'\nDescargadas: {completadas} de {len(scenes)} detectadas.')
+
     if fallidas:
-        print(f'\nDescarga terminada con {len(fallidas)} fallo(s) de {len(scenes)}:')
+        print(f'Fallidas ({len(fallidas)}):')
         for name in fallidas:
             print(f'  · {name}')
         print('Vuelve a ejecutar el paso de descarga para reintentarlas: '
               'las ya completadas se saltan.')
-    else:
-        print('Descarga completada.')
 
-    return scenes
+    return scenes, fallidas

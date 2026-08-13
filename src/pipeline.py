@@ -23,16 +23,32 @@ STEPS = ['download', 'extract', 'timeseries', 'anomalies', 'classify']
 
 
 class Pipeline:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, allow_partial: bool = False):
         with open(config_path) as f:
             self.config = yaml.safe_load(f)
         self.zone = zone_from_config(config_path)
         self.anomalies = None
+        self.allow_partial = allow_partial
         print(f'Pipeline: {self.config["location"]["name"]} (zona: {self.zone})')
 
     def download(self):
+        '''
+        Si alguna escena falla, el pipeline se detiene aquí por defecto: seguir
+        con extract/timeseries/anomalies sobre un conjunto incompleto produce
+        una climatología sesgada sin que se note en el resultado final. Con
+        --allow-partial se avisa pero se continúa a propósito (útil si solo
+        interesan las escenas ya descargadas).
+        '''
         print('\n=== Descarga ===')
-        _download(self.config, self.zone)
+        _, fallidas = _download(self.config, self.zone)
+        if fallidas and not self.allow_partial:
+            raise SystemExit(
+                f'\nDescarga incompleta: {len(fallidas)} escena(s) fallaron. '
+                f'El pipeline se detiene para no calcular anomalías sobre un '
+                f'conjunto de datos parcial.\n'
+                f'Reintenta el paso de descarga, o usa --allow-partial si '
+                f'quieres continuar a propósito con lo ya descargado.'
+            )
 
     def extract(self):
         print('\n=== Extracción ===')
@@ -155,6 +171,11 @@ if __name__ == '__main__':
         help=f'Pasos a ejecutar (por defecto todos: {" ".join(STEPS)}). '
              f'Útil para reprocesar sin volver a descargar.'
     )
+    parser.add_argument(
+        '--allow-partial', action='store_true',
+        help='Si falla la descarga de alguna escena, continúa igualmente con '
+             'los pasos siguientes en vez de detener el pipeline.'
+    )
     args = parser.parse_args()
 
-    Pipeline(args.config).run(args.steps)
+    Pipeline(args.config, allow_partial=args.allow_partial).run(args.steps)

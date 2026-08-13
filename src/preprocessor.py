@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import rasterio
 from rasterio.mask import mask as rio_mask
+from rasterio.warp import reproject, Resampling
 from pyproj import Transformer
 from shapely.geometry import box, mapping
 
@@ -31,10 +32,49 @@ def _bbox_to_geom(bbox, crs):
     return [mapping(box(x_min, y_min, x_max, y_max))]
 
 
-def mask_clouds(scene_dir, bbox, max_bbox_cloud_pct=50):
+def clip_to_bbox(band_file, geom):
+    '''Lee un archivo de banda y lo recorta a la geometría dada.'''
+    with rasterio.open(band_file) as src:
+        data, transform = rio_mask(src, geom, crop=True)
+        return data[0].astype(np.float32), transform, src.crs
+
+
+def _reproject_to_grid(band_file, geom, ref_transform, ref_shape, ref_crs, resampling):
     '''
-    Lee la SCL, recorta al bbox y devuelve máscara booleana válida a 10m.
-    True = píxel válido, False = nube/sombra/sin datos.
+    Recorta y reproyecta una banda a la rejilla de referencia (B02 a 10m)
+    explícitamente, en vez de asumir que un upscale por repetición (nearest
+    ×2) y un recorte al tamaño mínimo común quedan alineados por casualidad.
+
+    El recorte de rasterio a 10m y a 20m no comparte necesariamente el mismo
+    origen de rejilla — cada resolución nativa del producto puede recortar en
+    un punto ligeramente distinto del bbox — así que sincronizar por tamaño
+    mínimo garantiza dimensiones iguales pero no garantiza que el píxel
+    (i, j) de una banda y el de la máscara SCL cubran el mismo suelo.
+    Reproyectar contra el transform/CRS/shape exactos de la referencia sí lo
+    garantiza.
+    '''
+    with rasterio.open(band_file) as src:
+        clipped, clipped_transform = rio_mask(src, geom, crop=True)
+        src_crs = src.crs
+
+    dst = np.empty(ref_shape, dtype=np.float32)
+    reproject(
+        source=clipped[0].astype(np.float32),
+        destination=dst,
+        src_transform=clipped_transform,
+        src_crs=src_crs,
+        dst_transform=ref_transform,
+        dst_crs=ref_crs,
+        resampling=resampling,
+    )
+    return dst
+
+
+def mask_clouds(scl_file, geom, ref_transform, ref_shape, ref_crs, max_bbox_cloud_pct=50):
+    '''
+    Reproyecta la SCL (nativa a 20m) a la rejilla de referencia a 10m y
+    devuelve máscara booleana válida. True = píxel válido, False =
+    nube/sombra/sin datos.
 
     `max_bbox_cloud_pct` es solo informativo aquí (el filtrado real de
     escenas nubosas lo hace timeseries/anomaly_detector con este mismo
@@ -43,38 +83,30 @@ def mask_clouds(scene_dir, bbox, max_bbox_cloud_pct=50):
     satellite.max_cloud_pct, que es un umbral distinto — ese filtra la
     escena completa al descargar, no la nubosidad ya recortada al bbox.
     '''
-    r10m, r20m = _find_img_dirs(scene_dir)
-    scl_file = next(r20m.glob('*_SCL_20m.jp2'))
+    scl = _reproject_to_grid(scl_file, geom, ref_transform, ref_shape, ref_crs,
+                              resampling=Resampling.nearest)
+    scl = np.round(scl).astype(int)
 
-    with rasterio.open(scl_file) as src:
-        geom = _bbox_to_geom(bbox, src.crs.to_epsg() or src.crs.to_string())
-        scl_clipped, _ = rio_mask(src, geom, crop=True)
-        scl = scl_clipped[0]
-
-    valid_20m = ~np.isin(scl, list(INVALID_SCL))
-    cloud_pct = (~valid_20m).sum() / valid_20m.size * 100
+    valid = ~np.isin(scl, list(INVALID_SCL))
+    cloud_pct = (~valid).sum() / valid.size * 100
     print(f'  Cobertura nubosa en bbox: {cloud_pct:.1f}%')
     if cloud_pct > max_bbox_cloud_pct:
         print(f'  AVISO: supera el umbral de {max_bbox_cloud_pct}% del bbox '
               f'(processing.max_bbox_cloud_pct) — la escena se descartará '
               f'de la climatología de referencia')
 
-    # Upscale 20m → 10m (factor 2) con nearest neighbor
-    valid_10m = np.repeat(np.repeat(valid_20m, 2, axis=0), 2, axis=1)
-    return valid_10m, valid_20m, cloud_pct
-
-
-def clip_to_bbox(band_file, geom):
-    '''Lee un archivo de banda y lo recorta a la geometría dada.'''
-    with rasterio.open(band_file) as src:
-        data, transform = rio_mask(src, geom, crop=True)
-        return data[0].astype(np.float32), transform, src.crs
+    return valid, cloud_pct
 
 
 def preprocess(scene_dir, config):
     '''
     Aplica máscara de nubes y recorte al bbox sobre todas las bandas.
     Devuelve dict con arrays por banda (NaN donde hay nube) y metadatos.
+
+    B02 a 10m recortada al bbox es la rejilla de referencia: todas las demás
+    bandas (10m y 20m) y la máscara SCL se reproyectan explícitamente contra
+    su transform/shape/CRS exactos, así que el píxel (i, j) siempre
+    representa el mismo punto del suelo en todas ellas.
     '''
     bbox = config['location']['bbox']
     max_bbox_cloud = processing_opts(config)['max_bbox_cloud_pct']
@@ -86,45 +118,31 @@ def preprocess(scene_dir, config):
         crs = src.crs
     geom = _bbox_to_geom(bbox, crs.to_epsg() or crs.to_string())
 
+    ref_band, transform, _ = clip_to_bbox(ref_file, geom)
+    ref_shape = ref_band.shape
+
     print('Aplicando máscara de nubes (SCL)...')
-    valid_10m, valid_20m, cloud_pct = mask_clouds(scene_dir, bbox, max_bbox_cloud)
+    scl_file = next(r20m.glob('*_SCL_20m.jp2'))
+    valid_mask, cloud_pct = mask_clouds(scl_file, geom, transform, ref_shape, crs, max_bbox_cloud)
 
     print('Recortando bandas a bbox...')
-    raw_bands = {}
-    transform = None
+    bands = {'B02': ref_band}
 
-    for band_name in BANDS_10M:
+    for band_name in BANDS_10M[1:]:
         f = next(r10m.glob(f'*_{band_name}_10m.jp2'))
-        data, transform, _ = clip_to_bbox(f, geom)
-        raw_bands[band_name] = data
+        bands[band_name] = _reproject_to_grid(f, geom, transform, ref_shape, crs,
+                                               resampling=Resampling.nearest)
 
-    # Bandas a 20m (red edge y SWIR) — resampled a 10m con nearest neighbor
     for band_name in BANDS_20M:
         f = next(r20m.glob(f'*_{band_name}_20m.jp2'))
-        data_20m, _, _ = clip_to_bbox(f, geom)
+        bands[band_name] = _reproject_to_grid(f, geom, transform, ref_shape, crs,
+                                               resampling=Resampling.nearest)
 
-        # Sincronizar tamaños a 20m antes de upscalear
-        h20, w20 = min(data_20m.shape[0], valid_20m.shape[0]), min(data_20m.shape[1], valid_20m.shape[1])
-        data_20m = data_20m[:h20, :w20]
-
-        # Upscalear ×2 a 10m
-        raw_bands[band_name] = np.repeat(np.repeat(data_20m, 2, axis=0), 2, axis=1)
-
-    # Distintas fuentes de recorte (10m directo, 20m upscaled, máscara) pueden diferir
-    # en ±1 píxel por redondeo del recorte de rasterio. Sincronizamos todas al tamaño
-    # mínimo común antes de aplicar la máscara y devolver las bandas.
-    common_h = min([valid_10m.shape[0]] + [b.shape[0] for b in raw_bands.values()])
-    common_w = min([valid_10m.shape[1]] + [b.shape[1] for b in raw_bands.values()])
-    valid_10m_common = valid_10m[:common_h, :common_w]
-
-    bands = {}
-    for band_name, data in raw_bands.items():
-        data = data[:common_h, :common_w]
-        data[~valid_10m_common] = np.nan
-        bands[band_name] = data
+    for data in bands.values():
+        data[~valid_mask] = np.nan
 
     print(f'  Bandas procesadas: {list(bands.keys())}')
-    print(f'  Tamaño del recorte: {list(bands.values())[0].shape}')
+    print(f'  Tamaño del recorte: {ref_shape}')
 
     return {
         'bands': bands,

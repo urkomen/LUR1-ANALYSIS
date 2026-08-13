@@ -10,10 +10,31 @@ def load_timeseries(zone):
     return ts
 
 
+def _normalized_doy(dates):
+    '''
+    Día del año remapeado a un calendario de referencia sin bisiesto (2001).
+
+    pandas.dt.dayofyear usa el año real de cada fecha: en un año bisiesto
+    (2024) todo lo posterior al 29 de febrero queda desplazado +1 respecto al
+    mismo día calendario en un año normal (2025). Sin corregirlo, el 4 de
+    octubre de 2024 y el 4 de octubre de 2025 —el mismo día del año— se
+    calculan como si estuvieran a 1 día de distancia. El 29 de febrero se
+    mapea al 28: es un único día cada 4 años y no afecta a una ventana de
+    varias semanas.
+    '''
+    idx = pd.DatetimeIndex(dates)
+    month = idx.month
+    day = np.where((idx.month == 2) & (idx.day == 29), 28, idx.day)
+    ref = pd.to_datetime({'year': 2001, 'month': month, 'day': day})
+    return ref.dt.dayofyear.to_numpy()
+
+
 def _doy_distance(doys, doy):
     '''
     Distancia en días del año, cerrando el círculo por fin de año: el 20 de
-    diciembre y el 10 de enero están a 21 días, no a 344.
+    diciembre y el 10 de enero están a 21 días, no a 344. `doys` y `doy` ya
+    vienen normalizados a un año de referencia sin bisiesto (365 días), así
+    que el módulo 365 es siempre correcto.
     '''
     d = np.abs(doys - doy)
     return np.minimum(d, 365 - d)
@@ -50,8 +71,8 @@ def detect_anomalies(config, zone):
     ts = load_timeseries(zone)
 
     ts_valid = ts[ts['cloud_pct'] <= max_bbox_cloud].copy().reset_index(drop=True)
-    ts_valid['doy'] = ts_valid['date'].dt.dayofyear
-    doys = ts_valid['doy'].to_numpy()
+    doys = _normalized_doy(ts_valid['date'])
+    ts_valid['doy'] = doys
 
     results = []
     skipped = []

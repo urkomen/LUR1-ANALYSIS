@@ -13,9 +13,13 @@ dependencies:
   - fiona
   - numpy
   - pandas
-  - scikit-learn
+  # Fijadas: el repositorio distribuye un modelo serializado
+  # (data/models/production/rf_prod.joblib) con joblib. Las versiones de
+  # deserializacion no son estables entre releases de scikit-learn; sin fijar,
+  # una instalacion futura podria cargarlo con avisos o fallar directamente.
+  - scikit-learn=1.9.0
   - matplotlib
-  - joblib
+  - joblib=1.5.3
   - pyyaml
   - jupyter
   - ipykernel
